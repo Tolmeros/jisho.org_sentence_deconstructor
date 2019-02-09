@@ -1,6 +1,8 @@
 import argparse
 import re
+import unicodedata
 from urllib.request import urlopen
+
 
 from bs4 import BeautifulSoup
 
@@ -26,7 +28,18 @@ def get_sentence(html):
     soup = BeautifulSoup(html, 'html.parser')
     return soup.find('div', attrs={'class':'sentence_content'})
 
+
+def is_kanji(ch):
+    return 'CJK UNIFIED IDEOGRAPH' in unicodedata.name(ch)
+
 def process_sentence(sentence):
+    def split_jishoorg_furigana(furigana,text):
+        kanji_text=''
+        for c in text:
+            if is_kanji(c):
+                kanji_text += c
+        return text.replace(kanji_text,furigana)
+
     def ja(ul_tag):
         data = {
             'kana':[],
@@ -36,7 +49,9 @@ def process_sentence(sentence):
         for tag in ul_tag.find_all('li', recursive=False):
             spans = {x.attrs['class'][0]:x for x in tag.find_all('span')}
             if 'furigana' in spans:
-                data['kana'].append(spans['furigana'].text)
+                data['kana'].append(
+                    split_jishoorg_furigana(spans['furigana'].text,
+                                            spans['unlinked'].text))
             else:
                 data['kana'].append(spans['unlinked'].text)
 
